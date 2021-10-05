@@ -1,0 +1,18 @@
+[package]
+name = "stupid-sd-card"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+embedded-hal = "0.2"
+nb = "1"
+cortex-m = "0.7"
+cortex-m-rt ="0.7"
+
+panic-halt = "0.2"
+
+embedded-sdmmc = "0.3.0"
+
+[dependencies.stm32f4xx-hal]
+version = "0.10.0"
+features = ["stm32f412"]
