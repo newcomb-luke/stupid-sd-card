@@ -15,4 +15,4 @@ embedded-sdmmc = "0.3.0"
 
 [dependencies.stm32f4xx-hal]
 version = "0.10.0"
-features = ["stm32f401"]
+features = ["stm32f412"]

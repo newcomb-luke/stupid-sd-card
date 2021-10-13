@@ -38,10 +38,11 @@ fn main() -> ! {
         let gpioe = dp.GPIOE.split();
 
         let gpiob = dp.GPIOB.split();
+        let gpioc = dp.GPIOC.split();
 
         let mut success_led = gpiob.pb15.into_push_pull_output();
         success_led.set_high();
-        let mut failure_led = gpioe.pe2.into_open_drain_output();
+        let mut failure_led = gpioc.pc6.into_open_drain_output();
         failure_led.set_high();
         let mut orange_led = gpioe.pe1.into_open_drain_output();
         orange_led.set_high();
@@ -52,9 +53,9 @@ fn main() -> ! {
 
         let gpioa = dp.GPIOA.split();
 
-        // SPI1_SCK  PA5
-        // SPI1_MISO PA6
-        // SPI1_MOSI PA7
+        // SPI1_SCK  PA5 D13
+        // SPI1_MISO PA6 D12
+        // SPI1_MOSI PA7 D11
 
         let sck = gpioa.pa5.into_alternate();
         let miso = gpioa.pa6.into_alternate();
@@ -69,15 +70,18 @@ fn main() -> ! {
                 polarity: Polarity::IdleLow,
                 phase: Phase::CaptureOnFirstTransition,
             },
-            100.khz(),
+            800.khz(), //100-800
             clocks,
         );
 
-        let cs = gpiob.pb10.into_push_pull_output();
+        //STM32F412 PB8 D9
+        //STM32F401 PB10
+
+        let cs = gpiob.pb8.into_push_pull_output();
 
         let sdmmc_spi = SdMmcSpi::new(spi, cs);
 
-        let fake_clock = FakeClock {};
+        let fake_clock = FakeClock {}; //Fake clock
 
         let mut controller = Controller::new(sdmmc_spi, fake_clock);
 
@@ -104,11 +108,11 @@ fn main() -> ! {
 
         let mut root_dir = controller.open_root_dir(&first_volume).unwrap();
 
-        let mut test_file = controller
+        let mut test_file = controller //File names must be short Tested range(1-10 characters)
             .open_file_in_dir(
                 &mut first_volume,
                 &mut root_dir,
-                "TEST5.txt",
+                "_Troy.txt",
                 embedded_sdmmc::Mode::ReadWriteCreateOrTruncate,
             )
             .unwrap();
@@ -117,7 +121,7 @@ fn main() -> ! {
             .write(
                 &mut first_volume,
                 &mut test_file,
-                "Hello darkness my old friend".as_bytes(),
+                "Fuck you Luke".as_bytes(),
             )
             .unwrap();
 
