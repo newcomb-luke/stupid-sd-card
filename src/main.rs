@@ -48,7 +48,7 @@ fn main() -> ! {
 
         // Set up the system clock. We want to run at 48MHz for this one.
         let rcc = dp.RCC.constrain();
-        let clocks = rcc.cfgr.sysclk(80.mhz()).freeze();
+        let clocks = rcc.cfgr.sysclk(48.mhz()).freeze();
 
         let gpioa = dp.GPIOA.split();
 
@@ -69,11 +69,11 @@ fn main() -> ! {
                 polarity: Polarity::IdleLow,
                 phase: Phase::CaptureOnFirstTransition,
             },
-            200.khz(),
+            100.khz(),
             clocks,
         );
 
-        let cs = gpiob.pb8.into_push_pull_output();
+        let cs = gpiob.pb10.into_push_pull_output();
 
         let sdmmc_spi = SdMmcSpi::new(spi, cs);
 
