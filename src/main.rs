@@ -76,7 +76,16 @@ fn main() -> ! {
 
         //STM32F412 PB8 D9
         //STM32F401 PB10
+        //
 
+        //Buffer to contain any data we want to
+        //store in a file.
+        //TODO Currently it saves empty bytes
+        //after reading from file. We need
+        //to make it into a string
+        let mut buffer = [0u8; 4096];
+
+        //CS PB8 D9
         let cs = gpiob.pb8.into_push_pull_output();
 
         let sdmmc_spi = SdMmcSpi::new(spi, cs);
@@ -97,6 +106,8 @@ fn main() -> ! {
             }
         }
 
+        //What the volume we will use.
+        //Usually is 0
         let mut first_volume = match controller.get_volume(VolumeIdx(0)) {
             Ok(v) => v,
             Err(_) => {
@@ -106,27 +117,48 @@ fn main() -> ! {
             }
         };
 
+        //Opens the root directory according volume given.
         let mut root_dir = controller.open_root_dir(&first_volume).unwrap();
 
-        let mut test_file = controller //File names must be short Tested range(1-10 characters)
+        //Opens a file according to the: Volume, Directory, NAMEOFFILE
+        //and for last what MODE we open the file as.
+        let mut read_file = controller
             .open_file_in_dir(
                 &mut first_volume,
                 &mut root_dir,
-                "_Troy.txt",
-                embedded_sdmmc::Mode::ReadWriteCreateOrTruncate,
+                "_Lalala.txt",
+                embedded_sdmmc::Mode::ReadOnly,
             )
             .unwrap();
 
+        //Method to read file and put data into buffer.
         controller
-            .write(
+            .read(&mut first_volume, &mut read_file, &mut buffer)
+            .unwrap();
+
+        //Closes file specified.
+        //MAKE SURE TO DO AFTER USING FILE
+        controller.close_file(&first_volume, read_file).unwrap();
+
+        //This opens an output file or creates it if not found.
+        let mut output_file = controller
+            .open_file_in_dir(
                 &mut first_volume,
-                &mut test_file,
-                "Fuck you Luke".as_bytes(),
+                &mut root_dir,
+                "OutPut.txt",
+                embedded_sdmmc::Mode::ReadWriteCreate,
             )
             .unwrap();
 
-        controller.close_file(&first_volume, test_file).unwrap();
+        //Writes to the output file with the buffer we give it.
+        controller
+            .write(&mut first_volume, &mut output_file, &buffer)
+            .unwrap();
 
+        //Close file.
+        controller.close_file(&first_volume, output_file).unwrap();
+
+        //Closes directory
         controller.close_dir(&first_volume, root_dir);
 
         success_led.set_low();
