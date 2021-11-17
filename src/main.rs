@@ -12,22 +12,9 @@ use panic_halt as _; // panic handler
 use cortex_m_rt::entry;
 use stm32f4xx_hal as hal;
 
+use stupid_sd_card::sd;
+
 use crate::hal::{pac, prelude::*};
-
-struct FakeClock;
-
-impl TimeSource for FakeClock {
-    fn get_timestamp(&self) -> embedded_sdmmc::Timestamp {
-        Timestamp {
-            year_since_1970: 30,
-            zero_indexed_month: 2,
-            zero_indexed_day: 4,
-            hours: 8,
-            minutes: 31,
-            seconds: 2,
-        }
-    }
-}
 
 #[entry]
 fn main() -> ! {
@@ -83,16 +70,16 @@ fn main() -> ! {
         //TODO Currently it saves empty bytes
         //after reading from file. We need
         //to make it into a string
-        let mut buffer = [0u8; 4096];
+        //  let mut buffer1 = [0u8; 4096];
 
         //CS PB8 D9
         let cs = gpiob.pb8.into_push_pull_output();
 
-        let sdmmc_spi = SdMmcSpi::new(spi, cs);
+        let sdmmc_spi = sd::make_sdmmcspi(spi, cs);
 
-        let fake_clock = FakeClock {}; //Fake clock
+        let fake_clock = stupid_sd_card::clock::FakeClock; //Fake clock
 
-        let mut controller = Controller::new(sdmmc_spi, fake_clock);
+        let mut controller = sd::controller(sdmmc_spi, fake_clock);
 
         // Init SD card
         match controller.device().init() {
@@ -108,58 +95,30 @@ fn main() -> ! {
 
         //What the volume we will use.
         //Usually is 0
-        let mut first_volume = match controller.get_volume(VolumeIdx(0)) {
-            Ok(v) => v,
-            Err(_) => {
-                orange_led.set_low();
-
-                panic!("Yikes");
-            }
-        };
-
+        let mut volume = sd::get_volume(&mut controller);
         //Opens the root directory according volume given.
-        let mut root_dir = controller.open_root_dir(&first_volume).unwrap();
+        let root_dir = sd::root_dir(&mut controller, &mut volume);
+
+        let file_name: &'static str = "offset.txt";
 
         //Opens a file according to the: Volume, Directory, NAMEOFFILE
         //and for last what MODE we open the file as.
-        let mut read_file = controller
-            .open_file_in_dir(
-                &mut first_volume,
-                &mut root_dir,
-                "_Lalala.txt",
-                embedded_sdmmc::Mode::ReadOnly,
-            )
-            .unwrap();
-
-        //Method to read file and put data into buffer.
-        controller
-            .read(&mut first_volume, &mut read_file, &mut buffer)
-            .unwrap();
-
-        //Closes file specified.
-        //MAKE SURE TO DO AFTER USING FILE
-        controller.close_file(&first_volume, read_file).unwrap();
-
         //This opens an output file or creates it if not found.
-        let mut output_file = controller
-            .open_file_in_dir(
-                &mut first_volume,
-                &mut root_dir,
-                "OutPut.txt",
-                embedded_sdmmc::Mode::ReadWriteCreate,
-            )
-            .unwrap();
-
+        let mut output_file = sd::open_file(&mut controller, &root_dir, &mut volume, file_name);
         //Writes to the output file with the buffer we give it.
-        controller
-            .write(&mut first_volume, &mut output_file, &buffer)
-            .unwrap();
 
+        sd::write_into_file(
+            &mut controller,
+            &mut output_file,
+            &mut volume,
+            "Testing writing sd mod".as_bytes(),
+        );
         //Close file.
-        controller.close_file(&first_volume, output_file).unwrap();
+
+        controller.close_file(&volume, output_file).unwrap();
 
         //Closes directory
-        controller.close_dir(&first_volume, root_dir);
+        controller.close_dir(&volume, root_dir);
 
         success_led.set_low();
 
